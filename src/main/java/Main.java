@@ -47,6 +47,7 @@ public class Main {
             }
 
             System.out.println("\n--- Endereço ---");
+            System.out.println("CEP       : " + endereco.getCep());
             System.out.println("Logradouro: " + endereco.getLogradouro());
             System.out.println("Bairro    : " + endereco.getBairro());
             System.out.println("Cidade    : " + endereco.getLocalidade());

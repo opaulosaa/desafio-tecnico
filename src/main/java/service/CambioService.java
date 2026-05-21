@@ -8,11 +8,14 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public class CambioService {
+
+    private final HttpClient client = HttpClient.newHttpClient();
 
     public Map<String, CambioDto> getCotacoes(List<String> moedas) {
         try {
@@ -22,9 +25,9 @@ public class CambioService {
 
             String url = "https://economia.awesomeapi.com.br/json/last/" + pares;
 
-            HttpClient client = HttpClient.newHttpClient();
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
+                    .timeout(Duration.ofSeconds(10))
                     .GET()
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
