@@ -1,11 +1,17 @@
 import service.ApiService;
 import service.GeocodingService;
 import service.ClimaService;
+import service.CambioService;
 import dto.EnderecoDto;
 import dto.GeocodingResultDto;
 import dto.ClimaDto;
+import dto.CambioDto;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.stream.Collectors;
 
 public class Main {
     public static void main(String[] args) {
@@ -14,7 +20,9 @@ public class Main {
         ApiService apiService = new ApiService();
         GeocodingService geocodingService = new GeocodingService();
         ClimaService climaService = new ClimaService();
+        CambioService cambioService = new CambioService();
 
+        // --- Bloco CEP + Clima ---
         while (true) {
             System.out.print("Digite o CEP: ");
             String input = scanner.nextLine().trim();
@@ -27,8 +35,7 @@ public class Main {
             String cep = input.replaceAll("-", "");
 
             if (cep.length() != 8) {
-                System.out.println(
-                        "Erro: o CEP deve ter exatamente 8 dígitos (ex: 01001000 ou 01001-000). Tente novamente.\n");
+                System.out.println("Erro: o CEP deve ter exatamente 8 dígitos (ex: 01001000 ou 01001-000). Tente novamente.\n");
                 continue;
             }
 
@@ -56,6 +63,48 @@ public class Main {
                     System.out.println("Vento       : " + clima.getAtual().getVelocidadeVento() + " km/h");
                     System.out.println("Condição    : " + interpretarCodigoClima(clima.getAtual().getCodigoClima()));
                 }
+            }
+
+            break;
+        }
+
+        // --- Bloco Câmbio ---
+        while (true) {
+            System.out.print("\nDigite as moedas para consultar câmbio separadas por vírgula (ex: USD,EUR,GBP) ou Enter para pular: ");
+            String input = scanner.nextLine().trim();
+
+            if (input.isEmpty()) {
+                break;
+            }
+
+            List<String> moedas = Arrays.stream(input.split(","))
+                    .map(String::trim)
+                    .filter(m -> !m.isEmpty())
+                    .collect(Collectors.toList());
+
+            List<String> invalidas = moedas.stream()
+                    .filter(m -> !m.matches("[A-Za-z]{2,4}"))
+                    .collect(Collectors.toList());
+
+            if (!invalidas.isEmpty()) {
+                System.out.println("Código(s) inválido(s): " + invalidas + ". Use siglas como USD, EUR, GBP. Tente novamente.\n");
+                continue;
+            }
+
+            Map<String, CambioDto> cotacoes = cambioService.getCotacoes(moedas);
+
+            if (cotacoes == null || cotacoes.isEmpty()) {
+                System.out.println("Não foi possível obter as cotações. Verifique as siglas e tente novamente.\n");
+                continue;
+            }
+
+            System.out.println("\n--- Câmbio (em BRL) ---");
+            for (CambioDto cotacao : cotacoes.values()) {
+                String variacao = Double.parseDouble(cotacao.getPctChange()) >= 0
+                        ? "+" + cotacao.getPctChange()
+                        : cotacao.getPctChange();
+                System.out.printf("%-4s  Compra: R$ %-8s  Venda: R$ %-8s  Variação: %s%%%n",
+                        cotacao.getCode(), cotacao.getBid(), cotacao.getAsk(), variacao);
             }
 
             break;
