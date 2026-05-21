@@ -10,6 +10,7 @@ import java.util.Scanner;
 public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
+
         ApiService apiService = new ApiService();
         GeocodingService geocodingService = new GeocodingService();
         ClimaService climaService = new ClimaService();
@@ -26,7 +27,8 @@ public class Main {
             String cep = input.replaceAll("-", "");
 
             if (cep.length() != 8) {
-                System.out.println("Erro: o CEP deve ter exatamente 8 dígitos (ex: 01001000 ou 01001-000). Tente novamente.\n");
+                System.out.println(
+                        "Erro: o CEP deve ter exatamente 8 dígitos (ex: 01001000 ou 01001-000). Tente novamente.\n");
                 continue;
             }
 
