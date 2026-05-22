@@ -15,12 +15,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dto.GeocodingResponseDto;
 import dto.GeocodingResultDto;
+import exception.ApiException;
+import exception.ApiStatusException;
+import exception.ApiTimeoutException;
 
 public class GeocodingService {
 
     private final HttpClient client = HttpClient.newHttpClient();
 
-    public GeocodingResultDto getCoordenadas(String cidade) {
+    public GeocodingResultDto getCoordenadas(String cidade) throws ApiException {
         try {
             String nomeCodificado = URLEncoder.encode(cidade, StandardCharsets.UTF_8);
             String url = "https://geocoding-api.open-meteo.com/v1/search?name=" + nomeCodificado
@@ -35,8 +38,9 @@ public class GeocodingService {
             HttpResponse<String> response = client.send(request, BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Erro ao buscar coordenadas: a API retornou status " + response.statusCode() + ".");
-                return null;
+                throw new ApiStatusException(
+                        "A API de geocodificação retornou status " + response.statusCode() + ".",
+                        response.statusCode());
             }
 
             GeocodingResponseDto geocodingResponse =
@@ -48,18 +52,14 @@ public class GeocodingService {
                     : null;
 
         } catch (HttpTimeoutException e) {
-            System.out.println("Erro ao buscar coordenadas: tempo limite excedido.");
-            return null;
+            throw new ApiTimeoutException("A API de geocodificação não respondeu dentro do tempo limite.", e);
         } catch (JsonProcessingException e) {
-            System.out.println("Erro ao buscar coordenadas: não foi possível interpretar a resposta da API.");
-            return null;
+            throw new ApiException("Não foi possível interpretar a resposta da API de geocodificação.", e);
         } catch (IOException e) {
-            System.out.println("Erro ao buscar coordenadas: falha de comunicação — " + e.getMessage());
-            return null;
+            throw new ApiException("Erro de comunicação com a API de geocodificação: " + e.getMessage(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Erro ao buscar coordenadas: a requisição foi interrompida.");
-            return null;
+            throw new ApiException("A requisição ao serviço de geocodificação foi interrompida.", e);
         }
     }
 }

@@ -11,12 +11,15 @@ import java.time.Duration;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dto.ClimaDto;
+import exception.ApiException;
+import exception.ApiStatusException;
+import exception.ApiTimeoutException;
 
 public class ClimaService {
 
     private final HttpClient client = HttpClient.newHttpClient();
 
-    public ClimaDto getClima(double latitude, double longitude) {
+    public ClimaDto getClima(double latitude, double longitude) throws ApiException {
         try {
             String url = "https://api.open-meteo.com/v1/forecast"
                     + "?latitude=" + latitude
@@ -33,25 +36,22 @@ public class ClimaService {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Erro ao buscar clima: a API retornou status " + response.statusCode() + ".");
-                return null;
+                throw new ApiStatusException(
+                        "A API de clima retornou status " + response.statusCode() + ".",
+                        response.statusCode());
             }
 
             return new ObjectMapper().readValue(response.body(), ClimaDto.class);
 
         } catch (HttpTimeoutException e) {
-            System.out.println("Erro ao buscar clima: tempo limite excedido.");
-            return null;
+            throw new ApiTimeoutException("A API de clima não respondeu dentro do tempo limite.", e);
         } catch (JsonProcessingException e) {
-            System.out.println("Erro ao buscar clima: não foi possível interpretar a resposta da API.");
-            return null;
+            throw new ApiException("Não foi possível interpretar a resposta da API de clima.", e);
         } catch (IOException e) {
-            System.out.println("Erro ao buscar clima: falha de comunicação — " + e.getMessage());
-            return null;
+            throw new ApiException("Erro de comunicação com a API de clima: " + e.getMessage(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Erro ao buscar clima: a requisição foi interrompida.");
-            return null;
+            throw new ApiException("A requisição ao serviço de clima foi interrompida.", e);
         }
     }
 }

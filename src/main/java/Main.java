@@ -6,6 +6,9 @@ import dto.EnderecoDto;
 import dto.GeocodingResultDto;
 import dto.ClimaDto;
 import dto.CambioDto;
+import exception.ApiException;
+import exception.ApiStatusException;
+import exception.ApiTimeoutException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -39,7 +42,19 @@ public class Main {
                 continue;
             }
 
-            EnderecoDto endereco = apiService.getEndereco(cep);
+            EnderecoDto endereco;
+            try {
+                endereco = apiService.getEndereco(cep);
+            } catch (ApiTimeoutException e) {
+                System.out.println("Tempo limite excedido ao buscar o endereço. Verifique sua conexão e tente novamente.\n");
+                continue;
+            } catch (ApiStatusException e) {
+                System.out.println("Serviço de CEP indisponível (status " + e.getStatusCode() + "). Tente novamente mais tarde.\n");
+                continue;
+            } catch (ApiException e) {
+                System.out.println("Erro ao buscar endereço: " + e.getMessage() + "\n");
+                continue;
+            }
 
             if (endereco == null) {
                 System.out.println("CEP não encontrado. Verifique os números digitados e tente novamente.\n");
@@ -53,17 +68,26 @@ public class Main {
             System.out.println("Cidade    : " + endereco.getLocalidade());
             System.out.println("UF        : " + endereco.getUf());
 
-            GeocodingResultDto coordenadas = geocodingService.getCoordenadas(endereco.getLocalidade());
+            // Clima é não-fatal — falha aqui exibe aviso mas não impede mostrar o endereço
+            try {
+                GeocodingResultDto coordenadas = geocodingService.getCoordenadas(endereco.getLocalidade());
 
-            if (coordenadas != null) {
-                ClimaDto clima = climaService.getClima(coordenadas.getLatitude(), coordenadas.getLongitude());
+                if (coordenadas != null) {
+                    ClimaDto clima = climaService.getClima(coordenadas.getLatitude(), coordenadas.getLongitude());
 
-                if (clima != null && clima.getAtual() != null) {
-                    System.out.println("\n--- Clima em " + endereco.getLocalidade() + " ---");
-                    System.out.println("Temperatura : " + clima.getAtual().getTemperatura() + "°C");
-                    System.out.println("Vento       : " + clima.getAtual().getVelocidadeVento() + " km/h");
-                    System.out.println("Condição    : " + interpretarCodigoClima(clima.getAtual().getCodigoClima()));
+                    if (clima != null && clima.getAtual() != null) {
+                        System.out.println("\n--- Clima em " + endereco.getLocalidade() + " ---");
+                        System.out.println("Temperatura : " + clima.getAtual().getTemperatura() + "°C");
+                        System.out.println("Vento       : " + clima.getAtual().getVelocidadeVento() + " km/h");
+                        System.out.println("Condição    : " + interpretarCodigoClima(clima.getAtual().getCodigoClima()));
+                    }
                 }
+            } catch (ApiTimeoutException e) {
+                System.out.println("\nAviso: dados de clima indisponíveis — tempo limite excedido.");
+            } catch (ApiStatusException e) {
+                System.out.println("\nAviso: dados de clima indisponíveis — serviço retornou status " + e.getStatusCode() + ".");
+            } catch (ApiException e) {
+                System.out.println("\nAviso: dados de clima indisponíveis — " + e.getMessage());
             }
 
             break;
@@ -92,10 +116,22 @@ public class Main {
                 continue;
             }
 
-            Map<String, CambioDto> cotacoes = cambioService.getCotacoes(moedas);
+            Map<String, CambioDto> cotacoes;
+            try {
+                cotacoes = cambioService.getCotacoes(moedas);
+            } catch (ApiTimeoutException e) {
+                System.out.println("Tempo limite excedido ao buscar cotações. Tente novamente.\n");
+                continue;
+            } catch (ApiStatusException e) {
+                System.out.println("Serviço de câmbio indisponível (status " + e.getStatusCode() + "). Verifique as siglas e tente novamente.\n");
+                continue;
+            } catch (ApiException e) {
+                System.out.println("Erro ao buscar cotações: " + e.getMessage() + "\n");
+                continue;
+            }
 
-            if (cotacoes == null || cotacoes.isEmpty()) {
-                System.out.println("Não foi possível obter as cotações. Verifique as siglas e tente novamente.\n");
+            if (cotacoes.isEmpty()) {
+                System.out.println("Nenhuma cotação retornada. Verifique as siglas e tente novamente.\n");
                 continue;
             }
 

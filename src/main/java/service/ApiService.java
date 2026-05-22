@@ -11,12 +11,15 @@ import java.time.Duration;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dto.EnderecoDto;
+import exception.ApiException;
+import exception.ApiStatusException;
+import exception.ApiTimeoutException;
 
 public class ApiService {
 
     private final HttpClient client = HttpClient.newHttpClient();
 
-    public EnderecoDto getEndereco(String cep) {
+    public EnderecoDto getEndereco(String cep) throws ApiException {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://viacep.com.br/ws/" + cep + "/json/"))
@@ -27,8 +30,9 @@ public class ApiService {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Erro ao buscar endereço: a API retornou status " + response.statusCode() + ".");
-                return null;
+                throw new ApiStatusException(
+                        "A API de endereços retornou status " + response.statusCode() + ".",
+                        response.statusCode());
             }
 
             // Resposta válida da API indicando CEP inexistente — não é erro de sistema
@@ -39,18 +43,14 @@ public class ApiService {
             return new ObjectMapper().readValue(response.body(), EnderecoDto.class);
 
         } catch (HttpTimeoutException e) {
-            System.out.println("Erro ao buscar endereço: tempo limite excedido. Verifique sua conexão.");
-            return null;
+            throw new ApiTimeoutException("A API de endereços não respondeu dentro do tempo limite.", e);
         } catch (JsonProcessingException e) {
-            System.out.println("Erro ao buscar endereço: não foi possível interpretar a resposta da API.");
-            return null;
+            throw new ApiException("Não foi possível interpretar a resposta da API de endereços.", e);
         } catch (IOException e) {
-            System.out.println("Erro ao buscar endereço: falha de comunicação — " + e.getMessage());
-            return null;
+            throw new ApiException("Erro de comunicação com a API de endereços: " + e.getMessage(), e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Erro ao buscar endereço: a requisição foi interrompida.");
-            return null;
+            throw new ApiException("A requisição ao serviço de endereços foi interrompida.", e);
         }
     }
 }
