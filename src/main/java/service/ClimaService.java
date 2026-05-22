@@ -1,13 +1,16 @@
 package service;
 
-import dto.ClimaDto;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.time.Duration;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import dto.ClimaDto;
 
 public class ClimaService {
 
@@ -26,17 +29,28 @@ public class ClimaService {
                     .timeout(Duration.ofSeconds(10))
                     .GET()
                     .build();
+
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() != 200) {
-                System.out.println("Erro ao buscar clima: resposta inesperada da API (status " + response.statusCode() + ").");
+                System.out.println("Erro ao buscar clima: a API retornou status " + response.statusCode() + ".");
                 return null;
             }
 
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.readValue(response.body(), ClimaDto.class);
-        } catch (Exception e) {
-            System.out.println("Erro ao buscar clima: " + e.getMessage());
+            return new ObjectMapper().readValue(response.body(), ClimaDto.class);
+
+        } catch (HttpTimeoutException e) {
+            System.out.println("Erro ao buscar clima: tempo limite excedido.");
+            return null;
+        } catch (JsonProcessingException e) {
+            System.out.println("Erro ao buscar clima: não foi possível interpretar a resposta da API.");
+            return null;
+        } catch (IOException e) {
+            System.out.println("Erro ao buscar clima: falha de comunicação — " + e.getMessage());
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Erro ao buscar clima: a requisição foi interrompida.");
             return null;
         }
     }
